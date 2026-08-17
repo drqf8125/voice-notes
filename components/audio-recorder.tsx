@@ -8,19 +8,13 @@ import {
   Sparkles,
   Loader2,
   RotateCcw,
-  FileText,
   ListTodo,
   AlertCircle,
   Play,
   Pause,
   CheckCircle2,
 } from "lucide-react";
-
-interface TranscriptionResult {
-  text: string;
-  summary: string;
-  todos: string[];
-}
+import { TranscriptionResult } from "@/types";
 
 interface AudioRecorderProps {
   selectedListId?: string | null;
@@ -107,13 +101,14 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
       mediaRecorder.start(200);
       setIsRecording(true);
       setIsPaused(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Mikrofon-Zugriff fehlgeschlagen:", err);
       setError(
         "Mikrofonzugriff verweigert oder nicht unterstützt. Bitte erlaube den Mikrofonzugriff in deinem Browser."
       );
     }
   };
+
 
   // Aufnahme stoppen
   const stopRecording = () => {
@@ -175,17 +170,34 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
         throw new Error(data.error || "Fehler bei der Sprachverarbeitung.");
       }
 
-      setResult(data);
+      // API gibt die Note aus der DB zurück (todos als TodoItem[]),
+      // aber das UI erwartet TranscriptionResult (todos als string[]).
+      // Daher konvertieren:
+      const convertedResult: TranscriptionResult = {
+        text: data.transcript || "",
+        summary: data.summary || "",
+        todos: Array.isArray(data.todos)
+          ? data.todos.map((t: { text?: string; done?: boolean } | string) =>
+              typeof t === "string" ? t : t.text || ""
+            )
+          : [],
+      };
+      setResult(convertedResult);
 
       // Aktualisiert die Server-Daten auf page.tsx
       router.refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Transkriptionsfehler:", err);
-      setError(err.message || "Es ist ein unerwarteter Fehler aufgetreten.");
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Es ist ein unerwarteter Fehler aufgetreten.";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   // Formatiert Sekunden in 00:00 Format
   const formatTime = (seconds: number) => {
@@ -226,7 +238,7 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
           {!isRecording && !audioBlob && (
             <button
               onClick={startRecording}
-              className="flex items-center justify-center h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:scale-105 active:scale-95 transition-all"
+              className="flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-teal-500 to-violet-600 hover:from-teal-600 hover:to-violet-700 text-white shadow-lg hover:scale-105 active:scale-95 transition-all shadow-teal-500/10 hover:shadow-teal-500/20"
               title="Aufnahme starten"
             >
               <Mic className="h-8 w-8" />
@@ -267,7 +279,7 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
               <button
                 onClick={processAudio}
                 disabled={isLoading}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium shadow-md transition-all text-sm"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-violet-600 hover:from-teal-600 hover:to-violet-700 disabled:opacity-50 text-white font-medium shadow-md transition-all text-sm shadow-teal-500/10"
               >
                 {isLoading ? (
                   <>
@@ -306,7 +318,7 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
-              <Sparkles className="h-5 w-5 text-indigo-500" />
+              <Sparkles className="h-5 w-5 text-violet-500" />
               <h3>Neue Zusammenfassung</h3>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
@@ -317,29 +329,19 @@ export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
           {result.todos && result.todos.length > 0 && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
-                <ListTodo className="h-5 w-5 text-emerald-500" />
+                <ListTodo className="h-5 w-5 text-teal-500" />
                 <h3>Neue To-Dos</h3>
               </div>
               <ul className="space-y-2">
                 {result.todos.map((todo, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0 mt-0.5" />
                     <span>{todo}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
-              <FileText className="h-5 w-5 text-slate-500" />
-              <h3>Vollständiges Transkript</h3>
-            </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm whitespace-pre-wrap">
-              {result.text}
-            </p>
-          </div>
         </div>
       )}
     </div>

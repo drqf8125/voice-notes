@@ -1,45 +1,27 @@
-# 🎙️ Smart AI Voice & Notes App
+# Listen-Sharing-Feature + Mint & Lavendel Duoton-Redesign — Dateien
 
-Eine moderne, blitzschnelle Web-Anwendung zur Aufnahme von Sprachnotizen, automatischen Transkription und KI-gestützten Analyse. Wandle gesprochene Gedanken im Handumdrehen in strukturierte Zusammenfassungen und konkrete To-Do-Listen um!
+Diese Dateien 1:1 an der gleichen relativen Position in euer bestehendes
+Next.js-Projekt (ai-voice-notes) kopieren bzw. bestehende Dateien ersetzen:
 
-![Next.js](https://img.shields.io/badge/Next.js-14%2B-black?style=for-the-badge&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Groq](https://img.shields.io/badge/Groq_API-Whisper_%26_Llama_3-f55036?style=for-the-badge)
-![Vercel](https://img.shields.io/badge/Vercel-Hosted-000000?style=for-the-badge&logo=vercel&logoColor=white)
+```
+app/actions/lists.ts          -> ersetzt bestehende Datei (createList/deleteList + neue Sharing-Funktionen)
+app/actions/notes.ts          -> neue Datei (Notiz bearbeiten inkl. Tags)
+app/invite/[token]/page.tsx   -> neue Datei (Einladungsseite)
+app/login/page.tsx            -> ersetzt bestehende Datei (unterstützt jetzt ?redirect=)
+app/dashboard-client.tsx      -> ersetzt bestehende Datei
+app/page.tsx                  -> ersetzt bestehende Datei
+components/sidebar.tsx        -> ersetzt bestehende Datei
+components/share-list-modal.tsx -> neue Datei
+supabase/migration_list_sharing.sql -> nur Referenz, bereits in eurer DB ausgeführt
+```
 
----
+Nicht enthalten, weil mir der aktuelle Inhalt nicht vollständig vorliegt:
+- components/audio-recorder.tsx -> siehe AUDIO_RECORDER_COLOR_PATCH.md für die
+  nötigen Farb-Anpassungen (Mint & Lavendel Duoton)
+- utils/supabase/client.ts, utils/supabase/server.ts (unverändert)
+- app/api/transcribe/route.ts (unverändert, außer dem bereits von dir selbst
+  vorgenommenen Modell-Wechsel auf qwen/qwen3.6-27b)
 
-## ✨ Features
-
-- 🎤 **In-Browser Audio-Aufnahme**: Direkte Sprachaufnahme über die MediaRecorder API mit visueller Zeit- und Statusanzeige.
-- ⏯️ **Audio-Vorschau**: Integrierter Player zum Anhören der Aufnahme vor der KI-Verarbeitung.
-- ⚡ **Ultra-schnelle Transkription**: Erstellung von präzisen deutschen Transkripten in Sekundenbruchteilen mit `whisper-large-v3-turbo` via Groq API.
-- 🧠 **Intelligente KI-Analyse**: Automatische Extraktion von:
-  - 📝 **Kurzzusammenfassungen** (1–2 prägnante Sätze)
-  - ✅ **Aktionsbereiten To-Do-Listen** (Structured JSON Output)
-- 🎨 **Modernes UI/UX**: Cleaned Design mit Tailwind CSS, Lucide Icons, Responsive Layout & Dark-Mode Support.
-- 🚀 **Serverless Architecture**: Next.js App Router API-Routes optimiert für Vercel.
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js](https://nextjs.org/) (App Router, TypeScript)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **KI Provider**: [Groq API](https://groq.com/)
-  - Audio-Transkription: `whisper-large-v3-turbo`
-  - Text-Analyse & Extraktion: `llama-3.3-70b-versatile`
-- **Hosting**: [Vercel](https://vercel.com/)
-
----
-
-## 🚀 Quick Start
-
-### 1. Repository klonen & Abhängigkeiten installieren
-
-```bash
-git clone [https://github.com/DEIN-BENUTZERNAME/ai-voice-notes.git](https://github.com/DEIN-BENUTZERNAME/ai-voice-notes.git)
-cd ai-voice-notes
-npm install
+Nach dem Kopieren: `npm run dev`, eine Liste anlegen, über das Teilen-Icon
+den Link erzeugen und in einem zweiten (Inkognito-)Browser mit einem
+Test-Account öffnen.

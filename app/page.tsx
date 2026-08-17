@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardClient } from "./dashboard-client";
+import { DashboardClient } from "@/components/dashboard-client";
+import { updateNote, toggleNoteDone, toggleTodoDone } from "@/app/actions/notes";
 import { LogOut } from "lucide-react";
 import { revalidatePath } from "next/cache";
 
@@ -15,7 +16,7 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // Notizen & Listen laden
+  // Notizen & Listen laden (RLS liefert automatisch auch geteilte Listen/Notizen mit)
   const { data: notes } = await supabase
     .from("notes")
     .select("*")
@@ -50,7 +51,10 @@ export default async function Home() {
               Smart AI Voice & Notes
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Angemeldet als <span className="font-medium text-slate-700 dark:text-slate-300">{user.email}</span>
+              Angemeldet als{" "}
+              <span className="font-medium text-slate-700 dark:text-slate-300">
+                {user.email}
+              </span>
             </p>
           </div>
 
@@ -69,6 +73,10 @@ export default async function Home() {
           notes={notes || []}
           lists={lists || []}
           deleteNoteAction={deleteNote}
+          updateNoteAction={updateNote}
+          toggleNoteDoneAction={toggleNoteDone}
+          toggleTodoDoneAction={toggleTodoDone}
+          currentUserId={user.id}
         />
       </div>
     </main>

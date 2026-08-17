@@ -48,7 +48,8 @@ export async function POST(req: Request) {
       throw new Error("Transkription war leer oder fehlerhaft.");
     }
 
-    // 4. KI-Analyse mit Llama 3
+    // 4. KI-Analyse mit GPT-OSS (Groq)
+
     const systemPrompt = `Du bist ein intelligenter Assistent.
 Analysiere das folgende Transkript einer Sprachnotiz.
 Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
@@ -62,7 +63,8 @@ Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
         { role: "system", content: systemPrompt },
         { role: "user", content: transcriptText },
       ],
-      model: "qwen/qwen3.6-27b",
+      model: "openai/gpt-oss-120b",
+
       response_format: { type: "json_object" },
       temperature: 0.1,
     });
@@ -75,7 +77,13 @@ Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
 
     const parsedData = JSON.parse(aiResponseContent);
 
-    // 5. In der Supabase-Datenbank speichern
+    // 5. Todos von string[] in TodoItem[] umwandeln
+    const todos = (parsedData.todos || []).map((t: string) => ({
+      text: t,
+      done: false,
+    }));
+
+    // 6. In der Supabase-Datenbank speichern
     const { data: note, error: dbError } = await supabase
       .from("notes")
       .insert({
@@ -83,7 +91,8 @@ Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
         list_id: listId || null,
         transcript: transcriptText,
         summary: parsedData.summary || "Keine Zusammenfassung.",
-        todos: parsedData.todos || [],
+        todos: todos,
+        done: false,
       })
       .select()
       .single();
@@ -95,11 +104,14 @@ Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
 
     // 6. Gespeicherte Notiz zurückgeben
     return NextResponse.json(note);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Es ist ein unerwarteter Serverfehler aufgetreten." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Es ist ein unerwarteter Serverfehler aufgetreten.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+

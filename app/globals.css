@@ -24,3 +24,40 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== PWA / Mobile Optimierungen ===== */
+
+/* Verhindert ungewolltes Zoomen auf iOS */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Safe Area für Notch / Home-Indicator (iOS) */
+@supports (padding: max(0px)) {
+  .safe-area-padding {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Tap-Highlight entfernen (mobile) */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Verhindert Textauswahl bei Buttons (mobile) */
+button {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
