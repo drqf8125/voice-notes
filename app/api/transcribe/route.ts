@@ -1,16 +1,31 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
+import { createClient } from "@/utils/supabase/server";
 
-// Groq Client initialisieren (zieht sich den Key automatisch aus process.env.GROQ_API_KEY)
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
 export async function POST(req: Request) {
   try {
-    // 1. Audio-Datei aus dem Request extrahieren
+    // 1. Prüfen, ob der Nutzer bei Supabase angemeldet ist
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Nicht autorisiert. Bitte melde dich an." },
+        { status: 401 }
+      );
+    }
+
+    // 2. Audio-Datei aus dem Request extrahieren
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const listId = formData.get("list_id") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -19,13 +34,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Transkription mit Whisper via Groq
-    // Wir nutzen whisper-large-v3-turbo für maximale Geschwindigkeit
+    // 3. Transkription mit Whisper via Groq
     const transcription = await groq.audio.transcriptions.create({
       file: file,
       model: "whisper-large-v3-turbo",
       response_format: "json",
-      language: "de", // Setzt Deutsch als Hauptsprache
+      language: "de",
     });
 
     const transcriptText = transcription.text;
@@ -34,15 +48,13 @@ export async function POST(req: Request) {
       throw new Error("Transkription war leer oder fehlerhaft.");
     }
 
-    // 3. Analyse mit Llama 3 (Zusammenfassung & To-Dos)
-    // Wir zwingen das Modell durch den 'json_object' response_format, 
-    // uns ein sauberes JSON zurückzugeben, das wir im Frontend direkt nutzen können.
+    // 4. KI-Analyse mit Llama 3
     const systemPrompt = `Du bist ein intelligenter Assistent.
 Analysiere das folgende Transkript einer Sprachnotiz.
 Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
 {
   "summary": "Eine präzise, kurze Zusammenfassung der Notiz in 1-2 Sätzen.",
-  "todos": ["Todo 1", "Todo 2"] // Ein Array aus Aufgaben. Lass es leer [], falls keine Aufgaben erwähnt wurden.
+  "todos": ["Todo 1", "Todo 2"]
 }`;
 
     const completion = await groq.chat.completions.create({
@@ -50,27 +62,39 @@ Gib die Antwort AUSSCHLIESSLICH als valides JSON in exakt diesem Format zurück:
         { role: "system", content: systemPrompt },
         { role: "user", content: transcriptText },
       ],
-      model: "llama-3.3-70b-versatile", // Starkes Modell für Logik & Extraktion
-      response_format: { type: "json_object" }, 
-      temperature: 0.1, // Niedrige Temperatur für deterministischere, präzisere Ergebnisse
+      model: "qwen/qwen3.6-27b",
+      response_format: { type: "json_object" },
+      temperature: 0.1,
     });
 
     const aiResponseContent = completion.choices[0]?.message?.content;
-    
+
     if (!aiResponseContent) {
       throw new Error("Fehler bei der KI-Textanalyse.");
     }
 
-    // JSON-String in ein JavaScript-Objekt umwandeln
     const parsedData = JSON.parse(aiResponseContent);
 
-    // 4. Kombiniertes Ergebnis an das Frontend zurücksenden
-    return NextResponse.json({
-      text: transcriptText,
-      summary: parsedData.summary || "Keine Zusammenfassung generiert.",
-      todos: parsedData.todos || [],
-    });
+    // 5. In der Supabase-Datenbank speichern
+    const { data: note, error: dbError } = await supabase
+      .from("notes")
+      .insert({
+        user_id: user.id,
+        list_id: listId || null,
+        transcript: transcriptText,
+        summary: parsedData.summary || "Keine Zusammenfassung.",
+        todos: parsedData.todos || [],
+      })
+      .select()
+      .single();
 
+    if (dbError) {
+      console.error("Datenbank-Fehler beim Speichern:", dbError);
+      throw new Error("Fehler beim Speichern der Notiz in der Datenbank.");
+    }
+
+    // 6. Gespeicherte Notiz zurückgeben
+    return NextResponse.json(note);
   } catch (error: any) {
     console.error("API Error:", error);
     return NextResponse.json(

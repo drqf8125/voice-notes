@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Mic,
   Square,
@@ -21,7 +22,13 @@ interface TranscriptionResult {
   todos: string[];
 }
 
-export function AudioRecorder() {
+interface AudioRecorderProps {
+  selectedListId?: string | null;
+}
+
+export function AudioRecorder({ selectedListId }: AudioRecorderProps) {
+  const router = useRouter();
+
   // State Management
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -97,7 +104,7 @@ export function AudioRecorder() {
         stopMicrophone();
       };
 
-      mediaRecorder.start(200); // Sendet Chunks alle 200ms
+      mediaRecorder.start(200);
       setIsRecording(true);
       setIsPaused(false);
     } catch (err: any) {
@@ -143,7 +150,7 @@ export function AudioRecorder() {
     setError(null);
   };
 
-  // Audio an Backend-API schicken & analysieren
+  // Audio an Backend-API schicken, analysieren & UI aktualisieren
   const processAudio = async () => {
     if (!audioBlob) return;
 
@@ -153,6 +160,9 @@ export function AudioRecorder() {
     try {
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
+      if (selectedListId) {
+        formData.append("list_id", selectedListId);
+      }
 
       const response = await fetch("/api/transcribe", {
         method: "POST",
@@ -166,6 +176,9 @@ export function AudioRecorder() {
       }
 
       setResult(data);
+
+      // Aktualisiert die Server-Daten auf page.tsx
+      router.refresh();
     } catch (err: any) {
       console.error("Transkriptionsfehler:", err);
       setError(err.message || "Es ist ein unerwarteter Fehler aufgetreten.");
@@ -174,7 +187,7 @@ export function AudioRecorder() {
     }
   };
 
-  // Formatiert Sekunde in 00:00 Format
+  // Formatiert Sekunden in 00:00 Format
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -288,26 +301,24 @@ export function AudioRecorder() {
         </div>
       )}
 
-      {/* KI-Ergebnisse (Zusammenfassung & To-Dos) */}
+      {/* Live-Ergebnisanzeige nach Upload */}
       {result && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {/* Summary Box */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
               <Sparkles className="h-5 w-5 text-indigo-500" />
-              <h3>Zusammenfassung</h3>
+              <h3>Neue Zusammenfassung</h3>
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
               {result.summary}
             </p>
           </div>
 
-          {/* Action Items / To-Dos */}
           {result.todos && result.todos.length > 0 && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
                 <ListTodo className="h-5 w-5 text-emerald-500" />
-                <h3>Extrahierte To-Dos</h3>
+                <h3>Neue To-Dos</h3>
               </div>
               <ul className="space-y-2">
                 {result.todos.map((todo, idx) => (
@@ -320,7 +331,6 @@ export function AudioRecorder() {
             </div>
           )}
 
-          {/* Full Transcript */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 mb-3">
               <FileText className="h-5 w-5 text-slate-500" />
